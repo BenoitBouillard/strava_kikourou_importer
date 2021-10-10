@@ -7,13 +7,14 @@ import webbrowser
 import json
 import requests
 from functools import partial
+import time
+import datetime
 
 
-class RouteHttpServer(http.server.SimpleHTTPRequestHandler):
+class StravaAuthServer(http.server.SimpleHTTPRequestHandler):
 
     def __init__(self, *args, **kwargs):
-        self.code_callback = kwargs['code_callback']
-        kwargs.pop('code_callback')
+        self.code_callback = kwargs.pop('code_callback')
         super().__init__(*args, **kwargs)
 
     def do_GET(self):
@@ -33,6 +34,7 @@ class RouteHttpServer(http.server.SimpleHTTPRequestHandler):
 AUTH_URI  = "https://www.strava.com/oauth/authorize?client_id={}&response_type=code&redirect_uri=http://localhost:{}&approval_prompt=force&scope=activity:read_all"
 TOKEN_URI = "https://www.strava.com/oauth/token"
 
+
 class Strava(object):
     def __init__(self, config_file="config.json"):
         with open(config_file, 'r') as hc:
@@ -42,6 +44,7 @@ class Strava(object):
         self.client_secret = self.config['strava']['client_secret']
         self.refresh_token = self.config['strava']['refresh_token']
         self.code = None
+        self.session = requests.Session()
 
         try:
             with open('strava_tokens.json', 'r') as hr:
@@ -56,7 +59,7 @@ class Strava(object):
 
     def strava_authorize_server(self, port):
         self.code = None
-        handler_class = partial(RouteHttpServer, code_callback=self.set_code)
+        handler_class = partial(StravaAuthServer, code_callback=self.set_code)
         with socketserver.TCPServer(("", port), handler_class) as httpd:
             print("serving at port", port)
             while self.code is None:
@@ -75,13 +78,14 @@ class Strava(object):
 
     def __get_token(self):
         print("authorization_code")
-        response = requests.post(
+        response = self.session.post(
             url=TOKEN_URI,
             data={
                 'client_id': self.client_id,
                 'client_secret': self.client_secret,
                 'code': self.code,
-                'grant_type': 'authorization_code'
+                'grant_type': 'authorization_code',
+                'scope': "activity:read_all"
             }
         )
         self.tokens = response.json()
@@ -94,33 +98,42 @@ class Strava(object):
 
     def __refresh_token(self):
         print("Refresh token")
-        response = requests.post(
+        response = self.session.post(
             url=TOKEN_URI,
             data={
                 'client_id': self.client_id,
                 'client_secret': self.client_secret,
                 'grant_type': 'refresh_token',
-                'refresh_token': self.refresh_token
+                'refresh_token': self.tokens['refresh_token'],
+                'scope': "activity:read_all"
             }
         )
         # Save json response as a variable
         self.tokens = response.json()
         print(self.tokens)
+        print("status_code", response.status_code)
         if response.status_code == 400:
             return False
+        with open('strava_tokens.json', 'w') as hw:
+            json.dump(self.tokens, hw)
         return True
 
     def connect(self):
         if self.tokens is None:
             self.__refresh_auth_code()
             self.__get_token()
+        #rint("Epoch", time.time())
+        #print("expires_at", self.tokens['expires_at'])
+        if False or int(time.time()) > self.tokens['expires_at']:
+            if not self.__refresh_token():
+                raise Exception("Error in refresh token")
 
     def headers(self):
         return {"accept": "application/json",
                 'authorization': "{} {}".format(self.tokens['token_type'], self.tokens['access_token'])}
 
     def get_athlete(self):
-        response = requests.get("https://www.strava.com/api/v3/athlete", headers=self.headers())
+        response = self.session.get("https://www.strava.com/api/v3/athlete", headers=self.headers())
         print(response.json())
 
     def get_activities(self):
@@ -128,8 +141,21 @@ class Strava(object):
         params = {'page':1,
                   'per_page':30,
                   }
-        response = requests.get("https://www.strava.com/api/v3/athlete/activities", params=params, headers=self.headers())
-        return response.json()
+        response = self.session.get("https://www.strava.com/api/v3/athlete/activities", params=params, headers=self.headers())
+        if response.status_code != 200:
+            print(response.json())
+            return None
+        r = response.json()
+        activities = {}
+        for ac in r:
+            activities[ac['id']] = ac
+            ac['date'] = datetime.datetime.fromisoformat(ac['start_date_local'][:-1])
+            ac['duration'] = datetime.timedelta(seconds=ac['elapsed_time'])
+            ac['distance'] = ac['distance']/1000
+            ac['elevation'] = ac['total_elevation_gain']
+            #print(">>", ac['name'], ac['type'], ac['suffer_score'])
+        print("Strava: find {} activities".format(len(activities)))
+        return activities
 
 
 if __name__ == '__main__':
@@ -137,4 +163,5 @@ if __name__ == '__main__':
     args = parser.parse_args()
     strava = Strava()
     strava.connect()
+    print(len(strava.get_activities()))
 
