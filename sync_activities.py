@@ -1,13 +1,11 @@
-import requests
 from strava import Strava
-import json
 from kikourou import Kikourou
-import datetime
 from math import fabs
 
 
 strava = Strava()
-strava.connect()
+if not strava.connect(interract=False):
+    raise("Strava connection error. Need human to help")
 strava_activities = strava.get_activities()
 
 kikourou = Kikourou()
@@ -15,10 +13,12 @@ kikourou.connect()
 kik_activities = kikourou.get_activities()
 
 for sa in strava_activities.values():
-    #print(sa)
+    # print(sa)
 
     for ka in kik_activities.values():
-        if ka['date'].date() == sa['date'].date() and fabs(ka['distance']-sa['distance'])<1  and ka['duration'] == sa['duration']:
+        if ka['date'].date() == sa['date'].date() and \
+                fabs(ka['distance']-sa['distance']) < 1 and \
+                ka['duration'] == sa['duration']:
             # print("Find", sa['name'], sa['type'])
             if 'strava_id' in ka:
                 raise Exception("Error: a kikourou activity has 2 strava activities")

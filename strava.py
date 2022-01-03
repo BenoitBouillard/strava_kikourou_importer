@@ -31,7 +31,7 @@ class StravaAuthServer(http.server.SimpleHTTPRequestHandler):
         print("shutdown")
 
 
-AUTH_URI  = "https://www.strava.com/oauth/authorize?client_id={}&response_type=code&redirect_uri=http://localhost:{}&approval_prompt=force&scope=activity:read_all"
+AUTH_URI = "https://www.strava.com/oauth/authorize?client_id={}&response_type=code&redirect_uri=http://localhost:{}&approval_prompt=force&scope=activity:read_all"
 TOKEN_URI = "https://www.strava.com/oauth/token"
 
 
@@ -89,7 +89,6 @@ class Strava(object):
             }
         )
         self.tokens = response.json()
-        print(self.tokens)
         if response.status_code == 400:
             return False
         with open('strava_tokens.json', 'w') as hw:
@@ -110,7 +109,6 @@ class Strava(object):
         )
         # Save json response as a variable
         self.tokens = response.json()
-        print(self.tokens)
         print("status_code", response.status_code)
         if response.status_code == 400:
             return False
@@ -118,15 +116,18 @@ class Strava(object):
             json.dump(self.tokens, hw)
         return True
 
-    def connect(self):
+    def connect(self, interract=True):
         if self.tokens is None:
-            self.__refresh_auth_code()
-            self.__get_token()
-        #rint("Epoch", time.time())
-        #print("expires_at", self.tokens['expires_at'])
+            if interract:
+                self.__refresh_auth_code()
+                self.__get_token()
+            else:
+                return False
+        # print("Epoch", time.time(), "expires_at", self.tokens['expires_at'])
         if False or int(time.time()) > self.tokens['expires_at']:
             if not self.__refresh_token():
                 raise Exception("Error in refresh token")
+        return True
 
     def headers(self):
         return {"accept": "application/json",
@@ -134,14 +135,12 @@ class Strava(object):
 
     def get_athlete(self):
         response = self.session.get("https://www.strava.com/api/v3/athlete", headers=self.headers())
-        print(response.json())
+        return response.json()
 
     def get_activities(self):
-        # curl -X GET "https://www.strava.com/api/v3/athlete/activities?per_page=30" -H "accept: application/json" -H "authorization: Bearer aca99ba556ae884102a34231d4419f8ab0283630"
-        params = {'page':1,
-                  'per_page':30,
-                  }
-        response = self.session.get("https://www.strava.com/api/v3/athlete/activities", params=params, headers=self.headers())
+        params = {'page': 1, 'per_page': 30}
+        response = self.session.get("https://www.strava.com/api/v3/athlete/activities", params=params,
+                                    headers=self.headers())
         if response.status_code != 200:
             print(response.json())
             return None
@@ -151,9 +150,9 @@ class Strava(object):
             activities[ac['id']] = ac
             ac['date'] = datetime.datetime.fromisoformat(ac['start_date_local'][:-1])
             ac['duration'] = datetime.timedelta(seconds=ac['elapsed_time'])
-            ac['distance'] = ac['distance']/1000
+            ac['distance'] = ac['distance'] / 1000
             ac['elevation'] = ac['total_elevation_gain']
-            #print(">>", ac['name'], ac['type'], ac['suffer_score'])
+            # print(">>", ac['name'], ac['type'], ac['suffer_score'])
         print("Strava: find {} activities".format(len(activities)))
         return activities
 
@@ -162,6 +161,5 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Strava api connection')
     args = parser.parse_args()
     strava = Strava()
-    strava.connect()
-    print(len(strava.get_activities()))
-
+    if strava.connect():
+        print(len(strava.get_activities()))
