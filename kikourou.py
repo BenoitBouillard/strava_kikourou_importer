@@ -55,7 +55,10 @@ class Kikourou(object):
     @staticmethod
     def parse_duration(duration):
         seconds = int(duration[-4:-2], 10)
-        minutes = int(duration[-7:-5], 10)
+        if len(duration)> 4:
+            minutes = int(duration[-7:-5], 10)
+        else:
+            minutes = 0
         if len(duration) > 8:
             hours = int(duration[0:2], 10)
         else:
@@ -74,16 +77,16 @@ class Kikourou(object):
 
         params = {"nav1an": 1,
                   "kikoureur": self.user_id}
-        r = self.session.get("http://www.kikourou.net/profil/")
+        r = self.session.get("http://www.kikourou.net/entrainement/navigation.php", params=params)
         soup = BeautifulSoup(r.text, "html.parser")
-        cal = soup.find("div", {"id": "ongletentr"})
+        cal = soup.find("table", {"class": "calendrier"})
         for tr in cal.find_all("tr"):
             if tr.find('th') is not None:
                 continue
             td = tr.select("td")
             url = td[1].a["href"]
-            print("http://www.kikourou.net" + url)
-            r_s = self.session.get("http://www.kikourou.net" + url)
+            print("http://www.kikourou.net/entrainement/" + url)
+            r_s = self.session.get("http://www.kikourou.net/entrainement/"+url)
             soup_s = BeautifulSoup(r_s.text, "html.parser")
 
             trs_table = soup_s.find_all('table')[1].find_all('tr')
