@@ -1,6 +1,7 @@
 import argparse
 import datetime
 import json
+from pprint import pprint
 
 import requests
 from bs4 import BeautifulSoup
@@ -85,7 +86,6 @@ class Kikourou(object):
                 continue
             td = tr.select("td")
             url = td[1].a["href"]
-            print("http://www.kikourou.net/entrainement/" + url)
             r_s = self.session.get("http://www.kikourou.net/entrainement/"+url)
             soup_s = BeautifulSoup(r_s.text, "html.parser")
 
@@ -115,6 +115,8 @@ class Kikourou(object):
             return 24  # trail
         elif activity['type'] == "Ride":
             return 3  # Vélo
+        elif activity['type'] == "VirtualRide":
+            return 37  # Home Trainer
         elif activity['type'] == "Walk":
             return 28  # Marche
         # todo select VTT/Vélo suivant vitesse
@@ -160,7 +162,7 @@ class Kikourou(object):
             'fcmax': int(activity['max_heartrate']) if 'max_heartrate' in activity else "",
             'descriptionpublique': ("Importé de Strava le " + datetime.datetime.now().isoformat(
                 ' ') + " par strava_kikourou_importer").encode('iso-8859-1'),
-            'description': "https://www.strava.com/activities/{}".format(activity['id']),
+            'description': activity['url'],
             'details': 0,
             'submit': "Enregistrer",
             "dureesommeil": "0",

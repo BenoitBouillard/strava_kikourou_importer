@@ -2,20 +2,19 @@ from strava import Strava
 from kikourou import Kikourou
 from math import fabs
 
-
-strava = Strava()
-if not strava.connect(interract=False):
-    raise("Strava connection error. Need human to help")
-strava_activities = strava.get_activities()
-
 kikourou = Kikourou()
 kikourou.connect()
 kik_activities = kikourou.get_activities()
 
-for sa in strava_activities.values():
-    # print(sa)
+strava = Strava()
+if not strava.connect(interract=False):
+    raise("Strava connection error. Need human to help. Run strava.py to authorize the app into strava")
+strava_activities = strava.get_activities()
 
+
+for sa in strava_activities.values():
     for ka in kik_activities.values():
+
         if ka['date'].date() == sa['date'].date() and \
                 fabs(ka['distance']-sa['distance']) < 1 and \
                 ka['duration'] == sa['duration']:

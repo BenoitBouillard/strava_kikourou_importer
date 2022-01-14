@@ -9,6 +9,8 @@ import requests
 from functools import partial
 import time
 import datetime
+import os
+from pprint import pprint
 
 
 class StravaAuthServer(http.server.SimpleHTTPRequestHandler):
@@ -33,6 +35,7 @@ class StravaAuthServer(http.server.SimpleHTTPRequestHandler):
 
 AUTH_URI = "https://www.strava.com/oauth/authorize?client_id={}&response_type=code&redirect_uri=http://localhost:{}&approval_prompt=force&scope=activity:read_all"
 TOKEN_URI = "https://www.strava.com/oauth/token"
+TOKEN_FILE = 'strava_tokens.json'
 
 
 class Strava(object):
@@ -47,7 +50,7 @@ class Strava(object):
         self.session = requests.Session()
 
         try:
-            with open('strava_tokens.json', 'r') as hr:
+            with open(TOKEN_FILE, 'r') as hr:
                 self.tokens = json.load(hr)
                 print(self.tokens)
         except:
@@ -91,7 +94,7 @@ class Strava(object):
         self.tokens = response.json()
         if response.status_code == 400:
             return False
-        with open('strava_tokens.json', 'w') as hw:
+        with open(TOKEN_FILE, 'w') as hw:
             json.dump(self.tokens, hw)
         return True
 
@@ -112,7 +115,7 @@ class Strava(object):
         print("status_code", response.status_code)
         if response.status_code == 400:
             return False
-        with open('strava_tokens.json', 'w') as hw:
+        with open(TOKEN_FILE, 'w') as hw:
             json.dump(self.tokens, hw)
         return True
 
@@ -123,10 +126,11 @@ class Strava(object):
                 self.__get_token()
             else:
                 return False
-        # print("Epoch", time.time(), "expires_at", self.tokens['expires_at'])
-        if False or int(time.time()) > self.tokens['expires_at']:
+        if int(time.time()) > self.tokens['expires_at']:
             if not self.__refresh_token():
-                raise Exception("Error in refresh token")
+                # Unable to refresh token: remove local token file
+                os.remove(TOKEN_FILE)
+                return False
         return True
 
     def headers(self):
@@ -137,8 +141,10 @@ class Strava(object):
         response = self.session.get("https://www.strava.com/api/v3/athlete", headers=self.headers())
         return response.json()
 
-    def get_activities(self):
+    def get_activities(self, after=None):
         params = {'page': 1, 'per_page': 30}
+        if after:
+            params['after'] = after
         response = self.session.get("https://www.strava.com/api/v3/athlete/activities", params=params,
                                     headers=self.headers())
         if response.status_code != 200:
@@ -152,6 +158,8 @@ class Strava(object):
             ac['duration'] = datetime.timedelta(seconds=ac['elapsed_time'])
             ac['distance'] = ac['distance'] / 1000
             ac['elevation'] = ac['total_elevation_gain']
+            ac['url'] = "https://www.strava.com/activities/{}".format(ac['id'])
+            # pprint(ac)
             # print(">>", ac['name'], ac['type'], ac['suffer_score'])
         print("Strava: find {} activities".format(len(activities)))
         return activities
