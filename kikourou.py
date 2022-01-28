@@ -1,19 +1,16 @@
 import argparse
 import datetime
-import json
-from pprint import pprint
 
 import requests
 from bs4 import BeautifulSoup
 
 
 class Kikourou(object):
-    def __init__(self, config_file="config.json"):
-        with open(config_file, 'r') as hc:
-            self.config = json.load(hc)
-        self.user_id = self.config['kikourou']['user_id']
-        self.name = self.config['kikourou']['name']
-        self.password = self.config['kikourou']['password']
+    def __init__(self, config):
+        self.user_id = config['user_id']
+        self.name = config['name']
+        self.password = config['password']
+        self.config = config
         self.session = requests.Session()
 
     @staticmethod
@@ -110,20 +107,6 @@ class Kikourou(object):
         return activities
 
     @staticmethod
-    def sport_from_strava_type(activity):
-        if activity['type'] == "Run":
-            return 24  # trail
-        elif activity['type'] == "Ride":
-            return 3  # Vélo
-        elif activity['type'] == "VirtualRide":
-            return 37  # Home Trainer
-        elif activity['type'] == "Walk":
-            return 28  # Marche
-        # todo select VTT/Vélo suivant vitesse
-        print(">>>>>> Activity type not managed", activity['type'])
-        return 21  # autre
-
-    @staticmethod
     def intensite_from_strava(activity):
         if activity['suffer_score'] < 10:
             return 1  # trop facile
@@ -142,6 +125,10 @@ class Kikourou(object):
         return 8  # extreme
 
     def add_activity(self, activity):
+        if activity['type'] not in self.config["strava_to_kikourou"]['sport']:
+            print("!!! Activity type {} is not managed. Use 'autre' !!!", format(activity['type']))
+        sport = self.config["strava_to_kikourou"]['sport'].get(activity['type'], 21)
+
         params = {
             'jour': activity['date'].day,
             'mois': activity['date'].month,
@@ -151,7 +138,7 @@ class Kikourou(object):
             'difficulte': 4,  # moyenne
             'lieu': activity['location_country'].encode('iso-8859-1', 'replace'),
             'intensite': self.intensite_from_strava(activity),
-            'sport': self.sport_from_strava_type(activity),
+            'sport': sport,
             'phase': 0,
             'distance': "{:.3f}".format(activity['distance']),
             'denivele': int(activity['elevation']),
@@ -186,6 +173,7 @@ class Kikourou(object):
             "zone5sup": "178",
         }
         # print(params)
+        # return False
         r = self.session.post("http://www.kikourou.net/entrainement/ajout.php", params=params, headers=self.headers())
         soup = BeautifulSoup(r.text, "html.parser")
         main_text = soup.find('div', {'id': "contenuprincipal"}).text

@@ -39,20 +39,17 @@ TOKEN_FILE = 'strava_tokens.json'
 
 
 class Strava(object):
-    def __init__(self, config_file="config.json"):
-        with open(config_file, 'r') as hc:
-            self.config = json.load(hc)
-        self.client_id = self.config['strava']['client_id']
-        self.callback_port = self.config['strava']['callback_port']
-        self.client_secret = self.config['strava']['client_secret']
-        self.refresh_token = self.config['strava']['refresh_token']
+    def __init__(self, config):
+        self.client_id = config['client_id']
+        self.callback_port = config['callback_port']
+        self.client_secret = config['client_secret']
+        self.refresh_token = config['refresh_token']
         self.code = None
         self.session = requests.Session()
 
         try:
             with open(TOKEN_FILE, 'r') as hr:
                 self.tokens = json.load(hr)
-                print(self.tokens)
         except:
             self.tokens = None
 
@@ -131,6 +128,7 @@ class Strava(object):
                 # Unable to refresh token: remove local token file
                 os.remove(TOKEN_FILE)
                 return False
+        print("Connected to strava")
         return True
 
     def headers(self):
