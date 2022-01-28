@@ -1,0 +1,56 @@
+{
+  "strava": {
+    "client_id": 0,
+    "callback_port" : 5000,
+    "client_secret": "client_secret",
+    "refresh_token": "refresh_token"
+  },
+  "kikourou": {
+    "user_id": 0,
+    "name": "kikourou name",
+    "password": "password",
+    
+    "strava_to_kikourou": {
+      "sport": {
+        "Run": 24,
+        "Ride": 3,
+        "VirtualRide": 37,
+        "Walk": 28,
+
+        "AlpineSki": 36,
+        "BackcountrySki":  36,
+        "Canoeing":  11,
+        "Crossfit":  29,
+        "EBikeRide":  3,
+        "Elliptical":  37,
+        "Golf":  21,
+        "Handcycle":  3,
+        "Hike":  28,
+        "IceSkate":  5,
+        "InlineSkate": 5,
+        "Kayaking":  11,
+        "Kitesurf":  11,
+        "NordicSki": 31,
+        "RockClimbing":  20,
+        "RollerSki": 31,
+        "Rowing":  11,
+        "Sail":  11,
+        "Skateboard":  5,
+        "Snowboard":  36,
+        "Snowshoe":  14,
+        "Soccer":  21,
+        "StairStepper":  29,
+        "StandUpPaddling":  11,
+        "Surfing":  11,
+        "Swim":  11,
+        "Velomobile":  3,
+        "VirtualRun":  1,
+        "WeightTraining":  29,
+        "Wheelchair":  21,
+        "Windsurf":  11,
+        "Workout":  29,
+        "Yoga": 21
+      }
+    }
+  }
+}
