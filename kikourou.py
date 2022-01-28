@@ -1,5 +1,6 @@
 import argparse
 import datetime
+import json
 
 import requests
 from bs4 import BeautifulSoup
@@ -77,7 +78,7 @@ class Kikourou(object):
                   "kikoureur": self.user_id}
         r = self.session.get("http://www.kikourou.net/entrainement/navigation.php", params=params)
         soup = BeautifulSoup(r.text, "html.parser")
-        cal = soup.find("table", {"class": "calendrier"})
+        cal = soup.find("table", class_="calendrier")
         for tr in cal.find_all("tr"):
             if tr.find('th') is not None:
                 continue
@@ -86,7 +87,7 @@ class Kikourou(object):
             r_s = self.session.get("http://www.kikourou.net/entrainement/"+url)
             soup_s = BeautifulSoup(r_s.text, "html.parser")
 
-            trs_table = soup_s.find_all('table')[1].find_all('tr')
+            trs_table = soup_s.find(id="contenuprincipal").find('table').find_all('tr')
 
             activities[url] = {
                 'date': self.parse_date(trs_table[1].find_all('td')[1].string),
@@ -185,6 +186,8 @@ class Kikourou(object):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Strava api connection')
     args = parser.parse_args()
-    kikourou = Kikourou()
+    with open("config.json", 'r') as hc:
+        config = json.load(hc)
+    kikourou = Kikourou(config["kikourou"])
     kikourou.connect()
     kikourou.get_activities()
