@@ -109,19 +109,20 @@ class Kikourou(object):
 
     @staticmethod
     def intensite_from_strava(activity):
-        if activity['suffer_score'] < 10:
+        suffer_score = activity.get('suffer_score', 0)
+        if suffer_score < 10:
             return 1  # trop facile
-        if activity['suffer_score'] < 20:
+        if suffer_score < 20:
             return 2  # tres facile
-        if activity['suffer_score'] < 40:
+        if suffer_score < 40:
             return 3  # facile
-        if activity['suffer_score'] < 70:
+        if suffer_score < 70:
             return 4  # moyenne
-        if activity['suffer_score'] < 110:
+        if suffer_score < 110:
             return 5  # assez difficile
-        if activity['suffer_score'] < 160:
+        if suffer_score < 160:
             return 6  # difficile
-        if activity['suffer_score'] < 220:
+        if suffer_score < 220:
             return 7  # très difficile
         return 8  # extreme
 
