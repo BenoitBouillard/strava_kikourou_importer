@@ -2,8 +2,7 @@
   "strava": {
     "client_id": 0,
     "callback_port" : 5000,
-    "client_secret": "client_secret",
-    "refresh_token": "refresh_token"
+    "client_secret": "client_secret"
   },
   "kikourou": {
     "user_id": 0,
