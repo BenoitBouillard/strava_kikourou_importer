@@ -166,6 +166,8 @@ class Strava(object):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Strava api connection')
     args = parser.parse_args()
-    strava = Strava()
+    with open("config.json", 'r') as hc:
+        config = json.load(hc)
+    strava = Strava(config["strava"])
     if strava.connect():
         print(len(strava.get_activities()))
