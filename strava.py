@@ -10,7 +10,6 @@ from functools import partial
 import time
 import datetime
 import os
-from pprint import pprint
 
 
 class StravaAuthServer(http.server.SimpleHTTPRequestHandler):
