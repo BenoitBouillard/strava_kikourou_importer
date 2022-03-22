@@ -42,7 +42,6 @@ class Strava(object):
         self.client_id = config['client_id']
         self.callback_port = config['callback_port']
         self.client_secret = config['client_secret']
-        # self.refresh_token = config['refresh_token']
         self.code = None
         self.session = requests.Session()
 

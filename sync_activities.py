@@ -21,7 +21,6 @@ for sa in strava_activities.values():
         if ka['comment_private'] == sa['url'] or (ka['date'].date() == sa['date'].date() and
                                                   fabs(ka['distance'] - sa['distance']) < 1 and
                                                   ka['duration'] == sa['duration']):
-            # print("Find", sa['name'], sa['type'])
             if 'strava_id' in ka:
                 raise Exception("Error: a kikourou activity has 2 strava activities")
             ka['strava_id'] = sa['id']

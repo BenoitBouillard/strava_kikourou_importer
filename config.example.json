@@ -5,7 +5,6 @@
     "client_secret": "client_secret"
   },
   "kikourou": {
-    "user_id": 0,
     "name": "kikourou name",
     "password": "password",
     

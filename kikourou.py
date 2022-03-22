@@ -1,6 +1,7 @@
 import argparse
 import datetime
 import json
+import re
 
 import requests
 from bs4 import BeautifulSoup
@@ -8,7 +9,7 @@ from bs4 import BeautifulSoup
 
 class Kikourou(object):
     def __init__(self, config):
-        self.user_id = config['user_id']
+        self.user_id = None
         self.name = config['name']
         self.password = config['password']
         self.config = config
@@ -43,7 +44,13 @@ class Kikourou(object):
         if not r.text.find("Vous vous êtes connecté avec succès"):
             raise Exception("Not connection to kikourou")
 
-        # r = self.session.get("http://www.kikourou.net")
+        r = self.session.get("http://www.kikourou.net", headers=self.headers())
+        re_id = re.findall('idsportif=([0-9]+)"', r.text)
+        if re_id:
+            self.user_id = re_id[0]
+            print("idsportif is", self.user_id)
+        else:
+            raise Exception("Kikourou idsportif not found")
         print("Connected to kikourou")
 
     @staticmethod
@@ -54,7 +61,7 @@ class Kikourou(object):
     @staticmethod
     def parse_duration(duration):
         seconds = int(duration[-4:-2], 10)
-        if len(duration)> 4:
+        if len(duration) > 4:
             minutes = int(duration[-7:-5], 10)
         else:
             minutes = 0
@@ -192,3 +199,5 @@ if __name__ == '__main__':
     kikourou = Kikourou(config["kikourou"])
     kikourou.connect()
     kikourou.get_activities()
+
+
