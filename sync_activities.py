@@ -3,6 +3,7 @@ from kikourou import Kikourou
 from math import fabs
 import json
 
+
 with open("config.json", 'r') as hc:
     config = json.load(hc)
 
@@ -15,8 +16,8 @@ if not strava.connect(interract=False):
     raise ("Strava connection error. Need human to help. Run strava.py to authorize the app into strava")
 strava_activities = strava.get_activities()
 
-for sa in strava_activities.values():
-    for ka in kik_activities.values():
+for sa in strava_activities:
+    for ka in kik_activities:
 
         if ka['comment_private'] == sa['url'] or (ka['date'].date() == sa['date'].date() and
                                                   fabs(ka['distance'] - sa['distance']) < 1 and

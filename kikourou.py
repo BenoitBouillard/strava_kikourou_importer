@@ -2,13 +2,21 @@ import argparse
 import datetime
 import json
 import re
+import time
 
 import requests
 from bs4 import BeautifulSoup
 
 
 class Kikourou(object):
-    def __init__(self, config):
+    """
+    Kikourou connector
+    """
+    def __init__(self, config: dict) -> object:
+        """
+
+        :param config: dictionary for kikourou connection with name and password values, and strava_to_kikourou for actovity type conversion
+        """
         self.user_id = None
         self.name = config['name']
         self.password = config['password']
@@ -16,7 +24,12 @@ class Kikourou(object):
         self.session = requests.Session()
 
     @staticmethod
-    def headers():
+    def __headers() -> dict:
+        """
+        Construct header for kikourou request
+
+        :return: header for request
+        """
         return {
             'Host': "www.kikourou.net",
             'User-Agent': "Mozilla/5.0",
@@ -28,10 +41,14 @@ class Kikourou(object):
             'Content-Type': "application/x-www-form-urlencoded",
         }
 
-    def connect(self):
-        r = self.session.post("http://www.kikourou.net/forum/ucp.php?mode=login", headers=self.headers())
+    def connect(self) -> None:
+        """
+        Open session with kikourou server and login
+        """
+        r = self.session.post("http://www.kikourou.net/forum/ucp.php?mode=login", headers=self.__headers())
         soup = BeautifulSoup(r.text, "html.parser")
         sid = soup.find("input", {"name": "sid"})["value"]
+        print("sid", self.sid)
 
         url = "http://www.kikourou.net/forum/ucp.php?mode=login"
         params = {"mode": "login",
@@ -40,11 +57,11 @@ class Kikourou(object):
                   "sid": sid,
                   "redirect": "./ucp.php?mode=login",
                   "login": "Connection"}
-        r = self.session.post(url, data=params, headers=self.headers())
+        r = self.session.post(url, data=params, headers=self.__headers())
         if not r.text.find("Vous vous êtes connecté avec succès"):
             raise Exception("Not connection to kikourou")
 
-        r = self.session.get("http://www.kikourou.net", headers=self.headers())
+        r = self.session.get("http://www.kikourou.net", headers=self.__headers())
         re_id = re.findall('idsportif=([0-9]+)"', r.text)
         if re_id:
             self.user_id = re_id[0]
@@ -54,12 +71,18 @@ class Kikourou(object):
         print("Connected to kikourou")
 
     @staticmethod
-    def parse_date(date):
+    def __parse_date(date: str) -> datetime.datetime:
+        """
+        Convert kikourou date to datetime
+        """
         d = date.split("/")
         return datetime.datetime(int(d[2]), int(d[1]), int(d[0]))
 
     @staticmethod
-    def parse_duration(duration):
+    def __parse_duration(duration: str) -> datetime.timedelta:
+        """
+        Convert a kikourou duration into timedelta
+        """
         seconds = int(duration[-4:-2], 10)
         if len(duration) > 4:
             minutes = int(duration[-7:-5], 10)
@@ -72,14 +95,23 @@ class Kikourou(object):
         return datetime.timedelta(hours=hours, minutes=minutes, seconds=seconds)
 
     @staticmethod
-    def parse_elevation(elevation):
+    def __parse_elevation(elevation: str) -> int:
+        """
+        Convert a kikourou elevation to int
+        """
         ele = elevation.split(" ")[0]
         if ele == "-":
             return 0
         return int(ele)
 
-    def get_activities(self, limit=50):
-        activities = {}
+    def get_activities(self, limit: int = 50) -> list:
+        """
+        Get kikourou activities
+
+        :param limit: number of activities to get (50 by default)
+        :return: list of activities
+        """
+        activities = []
 
         params = {"nav1an": 1,
                   "kikoureur": self.user_id}
@@ -96,18 +128,17 @@ class Kikourou(object):
 
             trs_table = soup_s.find(id="contenuprincipal").find('table').find_all('tr')
 
-            activities[url] = {
-                'date': self.parse_date(trs_table[1].find_all('td')[1].string),
+            activities.append({
+                'date': self.__parse_date(trs_table[1].find_all('td')[1].string),
                 'url': url,
                 'title': td[1].a.get_text(),
                 'kind': trs_table[3].find_all('td')[1].get_text(),
-                'duration': self.parse_duration(trs_table[3].find_all('td')[5].get_text()),
+                'duration': self.__parse_duration(trs_table[3].find_all('td')[5].get_text()),
                 'distance': float(trs_table[1].find_all('td')[-1].get_text().split(" ")[0]),
-                'elevation': self.parse_elevation(trs_table[2].find_all('td')[5].get_text()),
+                'elevation': self.__parse_elevation(trs_table[2].find_all('td')[5].get_text()),
                 'comment_public': trs_table[-3].get_text().strip(),
                 'comment_private': trs_table[-1].td.get_text().strip(),
-            }
-            # print("Kikourou activity:", td[1].a.get_text())
+            })
 
             if len(activities) >= limit:
                 break
@@ -115,7 +146,13 @@ class Kikourou(object):
         return activities
 
     @staticmethod
-    def intensite_from_strava(activity):
+    def __intensite_from_strava(activity: dict) -> int:
+        """
+        Define the intensite of the activity from strava activity data
+
+        :param activity: strava actovity
+        :return: intensite
+        """
         suffer_score = activity.get('suffer_score', 0)
         if suffer_score < 10:
             return 1  # trop facile
@@ -133,7 +170,12 @@ class Kikourou(object):
             return 7  # très difficile
         return 8  # extreme
 
-    def add_activity(self, activity):
+    def add_activity(self, activity: dict) -> bool:
+        """
+        Add the strava activity to kikourou training log
+        :param activity: strava activity
+        :return: true if no error !
+        """
         if activity['type'] not in self.config["strava_to_kikourou"]['sport']:
             print("!!! Activity type {} is not managed. Use 'autre' !!!", format(activity['type']))
         sport = self.config["strava_to_kikourou"]['sport'].get(activity['type'], 21)
@@ -146,7 +188,7 @@ class Kikourou(object):
             'nom': activity['name'].encode('iso-8859-1', 'replace'),
             'difficulte': 4,  # moyenne
             'lieu': activity['location_country'].encode('iso-8859-1', 'replace'),
-            'intensite': self.intensite_from_strava(activity),
+            'intensite': self.__intensite_from_strava(activity),
             'sport': sport,
             'phase': 0,
             'distance': "{:.3f}".format(activity['distance']),
@@ -181,14 +223,54 @@ class Kikourou(object):
             "zone5": "173",
             "zone5sup": "178",
         }
-        # print(params)
-        # return False
-        r = self.session.post("http://www.kikourou.net/entrainement/ajout.php", params=params, headers=self.headers())
+        r = self.session.post("http://www.kikourou.net/entrainement/ajout.php", params=params, headers=self.__headers())
         soup = BeautifulSoup(r.text, "html.parser")
         main_text = soup.find('div', {'id': "contenuprincipal"}).text
         if "Nouvel entrainement enregistré" not in main_text:
             raise Exception("Error saving a new activity")
         return True
+
+    def search_userid(self, user_name):
+        params = {"username": user_name,
+                  "kikoureur": self.user_id}
+        r = self.session.get("http://www.kikourou.net/forum/memberlist.php?form=postform&field=username_list&select_single=&mode=searchuser", params=params)
+        re_id = re.findall('mode=viewprofile&amp;u=([0-9]+)"', r.text)
+        if re_id:
+            user_id = re_id[0]
+            print(f"user_id of {user_name} is {user_id}")
+            return user_id
+        print("Not found for {user_name}")
+        return None
+
+    def send_message(self, to, subject, message):
+        r = self.session.get("http://www.kikourou.net/forum/ucp.php?i=pm&mode=compose")
+        soup = BeautifulSoup(r.text, "html.parser")
+        form = soup.find("form", {"id":"postform"} )
+        form_action = form.attrs['action']
+        hidden = {}
+        for input in form.find_all("input", {'type': "hidden"}):
+            hidden[input.attrs['name']] = input.attrs['value']
+
+        params = {
+            f"address_list[u][{to}]": "to",
+            "subject": subject,
+            "message": message,
+            "username_list": "",
+            "icon": 8,
+            "addbbcode20": 100,
+            "post": "Envoyer",
+            "attach_sig": "on",
+            "filecomment": "",
+        }
+        params.update(hidden)
+
+        req = requests.Request("POST", f"http://www.kikourou.net/forum/{form_action}", data=params, files=dict())
+        preq = self.session.prepare_request(req)
+        r = self.session.send(preq)
+        if r.text.find("Le message a été envoyé avec succès.")>=0:
+            return True
+        return False
+
 
 
 if __name__ == '__main__':
@@ -198,6 +280,8 @@ if __name__ == '__main__':
         config = json.load(hc)
     kikourou = Kikourou(config["kikourou"])
     kikourou.connect()
-    kikourou.get_activities()
+    id = kikourou.search_userid("BouBou27")
+    kikourou.send_message(id, "test 2", "msg 2")
+    # kikourou.get_activities()
 
 
